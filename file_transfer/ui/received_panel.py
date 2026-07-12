@@ -14,6 +14,7 @@ from PyQt6.QtWidgets import (
     QListWidgetItem,
     QMessageBox,
     QPushButton,
+    QSizePolicy,
     QVBoxLayout,
     QWidget,
 )
@@ -34,9 +35,7 @@ def format_time(iso_text: str) -> str:
     if not iso_text:
         return ""
     try:
-        # Show local-friendly short form from ISO timestamp
-        stamp = iso_text.replace("T", " ").split("+")[0].split(".")[0]
-        return stamp
+        return iso_text.replace("T", " ").split("+")[0].split(".")[0]
     except ValueError:
         return iso_text
 
@@ -63,13 +62,15 @@ class ReceivedFilesPanel(QFrame):
     def __init__(self, store: ReceivedStore, parent: QWidget | None = None) -> None:
         super().__init__(parent)
         self.setObjectName("card")
+        self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
         self._store = store
 
         layout = QVBoxLayout(self)
-        layout.setContentsMargins(16, 14, 16, 14)
-        layout.setSpacing(10)
+        layout.setContentsMargins(16, 16, 16, 16)
+        layout.setSpacing(12)
 
         header = QHBoxLayout()
+        header.setSpacing(8)
         section = QLabel("RECEIVED FILES")
         section.setObjectName("sectionTitle")
         header.addWidget(section)
@@ -82,28 +83,34 @@ class ReceivedFilesPanel(QFrame):
 
         self.list_widget = QListWidget()
         self.list_widget.setObjectName("receivedList")
-        self.list_widget.setMinimumHeight(120)
+        self.list_widget.setMinimumHeight(100)
+        self.list_widget.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
         self.list_widget.setAlternatingRowColors(True)
         self.list_widget.itemDoubleClicked.connect(self._open_selected)
-        layout.addWidget(self.list_widget)
+        layout.addWidget(self.list_widget, stretch=1)
 
         btn_row = QHBoxLayout()
         btn_row.setSpacing(8)
+        btn_row.setContentsMargins(0, 4, 0, 0)
 
         self.open_btn = QPushButton("Open")
         self.open_btn.setObjectName("chooseBtn")
+        self.open_btn.setSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Fixed)
         self.open_btn.clicked.connect(self._open_selected)
 
         self.folder_btn = QPushButton("Show Folder")
         self.folder_btn.setObjectName("chooseBtn")
+        self.folder_btn.setSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Fixed)
         self.folder_btn.clicked.connect(self._show_folder)
 
         self.refresh_btn = QPushButton("Refresh")
         self.refresh_btn.setObjectName("chooseBtn")
+        self.refresh_btn.setSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Fixed)
         self.refresh_btn.clicked.connect(self.refresh)
 
         self.clear_btn = QPushButton("Clear List")
         self.clear_btn.setObjectName("chooseBtn")
+        self.clear_btn.setSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Fixed)
         self.clear_btn.clicked.connect(self._clear_list)
 
         btn_row.addWidget(self.open_btn)
@@ -163,7 +170,6 @@ class ReceivedFilesPanel(QFrame):
     def _show_folder(self) -> None:
         path = self._selected_path()
         if path is None:
-            # Fall back to Downloads if nothing selected
             folder = Path.home() / "Downloads"
         else:
             folder = path.parent if path.exists() else Path.home() / "Downloads"

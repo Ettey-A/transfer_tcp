@@ -17,6 +17,8 @@ from PyQt6.QtWidgets import (
     QMessageBox,
     QProgressBar,
     QPushButton,
+    QScrollArea,
+    QSizePolicy,
     QVBoxLayout,
     QWidget,
 )
@@ -40,18 +42,23 @@ class DropZone(QFrame):
         self._on_files_selected = on_files_selected
         self.setAcceptDrops(True)
         self.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.setFixedHeight(88)
+        self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
 
         layout = QVBoxLayout(self)
-        layout.setContentsMargins(16, 16, 16, 16)
+        layout.setContentsMargins(12, 12, 12, 12)
         layout.setSpacing(4)
+        layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
         self.title_label = QLabel("Drop files here or click to browse")
         self.title_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self.title_label.setStyleSheet("font-size: 14px; font-weight: 600; color: #374151; border: none;")
+        self.title_label.setWordWrap(True)
+        self.title_label.setStyleSheet("font-size: 14px; font-weight: 600; color: #374151; border: none; background: transparent;")
 
         self.hint_label = QLabel("No files selected")
         self.hint_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self.hint_label.setStyleSheet("font-size: 12px; color: #9ca3af; border: none;")
+        self.hint_label.setWordWrap(True)
+        self.hint_label.setStyleSheet("font-size: 12px; color: #9ca3af; border: none; background: transparent;")
 
         layout.addWidget(self.title_label)
         layout.addWidget(self.hint_label)
@@ -102,9 +109,8 @@ class MainWindow(QMainWindow):
     def __init__(self) -> None:
         super().__init__()
         self.setWindowTitle("File Transfer")
-        # Native window frame (minimize / maximize / close from Windows)
-        self.setMinimumSize(500, 680)
-        self.resize(540, 740)
+        self.setMinimumSize(480, 560)
+        self.resize(560, 720)
 
         self._send_thread: QThread | None = None
         self._send_worker: SendWorker | None = None
@@ -121,9 +127,24 @@ class MainWindow(QMainWindow):
         central.setObjectName("centralWidget")
         self.setCentralWidget(central)
 
-        root = QVBoxLayout(central)
-        root.setContentsMargins(24, 24, 24, 24)
-        root.setSpacing(16)
+        outer = QVBoxLayout(central)
+        outer.setContentsMargins(0, 0, 0, 0)
+        outer.setSpacing(0)
+
+        scroll = QScrollArea()
+        scroll.setWidgetResizable(True)
+        scroll.setFrameShape(QFrame.Shape.NoFrame)
+        scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        scroll.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
+        outer.addWidget(scroll)
+
+        content = QWidget()
+        content.setObjectName("scrollContent")
+        scroll.setWidget(content)
+
+        root = QVBoxLayout(content)
+        root.setContentsMargins(20, 20, 20, 20)
+        root.setSpacing(14)
 
         title = QLabel("File Transfer")
         title.setObjectName("appTitle")
@@ -136,44 +157,50 @@ class MainWindow(QMainWindow):
         root.addWidget(self._build_connection_card())
         root.addWidget(self._build_files_card())
         root.addWidget(self._build_send_card())
+
         self.received_panel = ReceivedFilesPanel(self._received_store)
-        root.addWidget(self.received_panel)
-        root.addStretch()
+        root.addWidget(self.received_panel, stretch=1)
 
     def _card(self) -> QFrame:
         card = QFrame()
         card.setObjectName("card")
+        card.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Maximum)
         return card
 
     def _build_connection_card(self) -> QFrame:
         card = self._card()
         layout = QVBoxLayout(card)
-        layout.setContentsMargins(16, 14, 16, 14)
-        layout.setSpacing(10)
+        layout.setContentsMargins(16, 16, 16, 16)
+        layout.setSpacing(8)
 
         section = QLabel("RECIPIENT")
         section.setObjectName("sectionTitle")
 
         local_row = QHBoxLayout()
+        local_row.setSpacing(8)
         local_label = QLabel("Your IP (share this)")
         local_label.setObjectName("fieldLabel")
         self.local_ip_label = QLabel(get_local_ip())
         self.local_ip_label.setObjectName("localIpValue")
+        self.local_ip_label.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
         local_row.addWidget(local_label)
         local_row.addStretch()
         local_row.addWidget(self.local_ip_label)
 
         self.ready_label = QLabel("Ready to receive files automatically")
         self.ready_label.setObjectName("readyLabel")
+        self.ready_label.setWordWrap(True)
 
         recipient_label = QLabel("Recipient IP")
         recipient_label.setObjectName("fieldLabel")
         self.recipient_ip_edit = QLineEdit()
         self.recipient_ip_edit.setPlaceholderText("e.g. 192.168.1.42")
+        self.recipient_ip_edit.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
 
         layout.addWidget(section)
         layout.addLayout(local_row)
         layout.addWidget(self.ready_label)
+        layout.addSpacing(4)
         layout.addWidget(recipient_label)
         layout.addWidget(self.recipient_ip_edit)
         return card
@@ -181,7 +208,7 @@ class MainWindow(QMainWindow):
     def _build_files_card(self) -> QFrame:
         card = self._card()
         layout = QVBoxLayout(card)
-        layout.setContentsMargins(16, 14, 16, 14)
+        layout.setContentsMargins(16, 16, 16, 16)
         layout.setSpacing(10)
 
         section = QLabel("FILES")
@@ -190,6 +217,7 @@ class MainWindow(QMainWindow):
         self.drop_zone = DropZone(self._set_selected_files)
         self.choose_btn = QPushButton("Browse Files")
         self.choose_btn.setObjectName("chooseBtn")
+        self.choose_btn.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
         self.choose_btn.clicked.connect(self._pick_files)
 
         layout.addWidget(section)
@@ -200,20 +228,23 @@ class MainWindow(QMainWindow):
     def _build_send_card(self) -> QFrame:
         card = self._card()
         layout = QVBoxLayout(card)
-        layout.setContentsMargins(16, 14, 16, 14)
+        layout.setContentsMargins(16, 16, 16, 16)
         layout.setSpacing(10)
 
         self.send_btn = QPushButton("Send to Recipient")
         self.send_btn.setObjectName("sendBtn")
+        self.send_btn.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
         self.send_btn.clicked.connect(self._send_files)
 
         self.progress_bar = QProgressBar()
         self.progress_bar.setRange(0, 100)
         self.progress_bar.setValue(0)
         self.progress_bar.setTextVisible(False)
+        self.progress_bar.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
 
         self.status_label = QLabel("Waiting for transfers")
         self.status_label.setObjectName("statusLabel")
+        self.status_label.setWordWrap(True)
 
         layout.addWidget(self.send_btn)
         layout.addWidget(self.progress_bar)
@@ -295,7 +326,6 @@ class MainWindow(QMainWindow):
             QMessageBox.warning(self, "No Files", "Choose files to send first.")
             return
 
-        # Free the port while we send from this machine
         if self._listener_worker:
             self._listener_worker.pause()
 
@@ -353,6 +383,12 @@ class MainWindow(QMainWindow):
 
 def run_app() -> None:
     import sys
+
+    # Helps Windows render layouts correctly with display scaling
+    if hasattr(Qt, "ApplicationAttribute"):
+        QApplication.setHighDpiScaleFactorRoundingPolicy(
+            Qt.HighDpiScaleFactorRoundingPolicy.PassThrough
+        )
 
     app = QApplication(sys.argv)
     app.setStyle("Fusion")

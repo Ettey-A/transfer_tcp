@@ -1,51 +1,58 @@
-"""Background workers for peer-to-peer transfers."""  # Module docstring for Qt background thread workers
+"""Background workers for transfers."""
 
-from pathlib import Path  # Used for file path type hints
+from pathlib import Path
 
-from PyQt6.QtCore import QObject, pyqtSignal  # Qt base class and signal system for thread-safe UI updates
+from PyQt6.QtCore import QObject, pyqtSignal
 
-from file_transfer.peer import Peer  # Core P2P transfer logic used by both workers
+from file_transfer.listener import IncomingListener
+from file_transfer.peer import Peer
 
 
-class SendWorker(QObject):  # Qt worker object that sends files on a background thread
-    log = pyqtSignal(str)  # Signal emitted with log messages (not currently wired in simplified UI)
-    progress = pyqtSignal(int, int)  # Signal emitted with (bytes_done, total_bytes) during transfer
-    finished = pyqtSignal()  # Signal emitted when sending completes successfully
-    error = pyqtSignal(str)  # Signal emitted when sending fails with an error message
+class SendWorker(QObject):
+    progress = pyqtSignal(int, int)
+    finished = pyqtSignal()
+    error = pyqtSignal(str)
 
-    def __init__(self, peer_ip: str, file_paths: list[Path]) -> None:  # Initialize send worker with target and files
-        super().__init__()  # Call QObject constructor
-        self._peer_ip = peer_ip  # Store the remote peer's IP address
-        self._file_paths = file_paths  # Store list of local file paths to send
-        self._peer = Peer(  # Create Peer instance and wire its callbacks to Qt signals
-            on_log=self.log.emit,  # Forward log messages to UI thread via signal
-            on_progress=self.progress.emit,  # Forward progress updates to UI thread
-            on_finished=self.finished.emit,  # Forward success notification to UI thread
-            on_error=self.error.emit,  # Forward error messages to UI thread
+    def __init__(self, peer_ip: str, file_paths: list[Path]) -> None:
+        super().__init__()
+        self._peer_ip = peer_ip
+        self._file_paths = file_paths
+        self._peer = Peer(
+            on_progress=self.progress.emit,
+            on_finished=self.finished.emit,
+            on_error=self.error.emit,
         )
 
-    def run(self) -> None:  # Entry point called when the background thread starts
-        self._peer.send_files(self._peer_ip, self._file_paths)  # Connect to peer and send all selected files
+    def run(self) -> None:
+        self._peer.send_files(self._peer_ip, self._file_paths)
 
 
-class ReceiveWorker(QObject):  # Qt worker object that receives files on a background thread
-    log = pyqtSignal(str)  # Signal emitted with log messages (not currently wired in simplified UI)
-    progress = pyqtSignal(int, int)  # Signal emitted with (bytes_done, total_bytes) during transfer
-    finished = pyqtSignal()  # Signal emitted when receiving completes successfully
-    error = pyqtSignal(str)  # Signal emitted when receiving fails with an error message
-    file_received = pyqtSignal(str)  # Signal emitted with path string when each file is saved
+class ListenerWorker(QObject):
+    started = pyqtSignal()
+    progress = pyqtSignal(int, int)
+    file_received = pyqtSignal(str)
+    error = pyqtSignal(str)
+    log = pyqtSignal(str)
 
-    def __init__(self, peer_ip: str, save_dir: Path) -> None:  # Initialize receive worker with peer IP and save folder
-        super().__init__()  # Call QObject constructor
-        self._peer_ip = peer_ip  # Store the remote peer's IP address we expect to connect from
-        self._save_dir = save_dir  # Store directory where received files will be saved (Downloads)
-        self._peer = Peer(  # Create Peer instance and wire its callbacks to Qt signals
-            on_log=self.log.emit,  # Forward log messages to UI thread via signal
-            on_progress=self.progress.emit,  # Forward progress updates to UI thread
-            on_finished=self.finished.emit,  # Forward success notification to UI thread
-            on_error=self.error.emit,  # Forward error messages to UI thread
-            on_file_received=lambda path: self.file_received.emit(str(path)),  # Emit file path when each file arrives
+    def __init__(self, save_dir: Path) -> None:
+        super().__init__()
+        self._listener = IncomingListener(
+            save_dir=save_dir,
+            on_log=self.log.emit,
+            on_progress=self.progress.emit,
+            on_file_received=lambda path: self.file_received.emit(str(path)),
+            on_started=self.started.emit,
+            on_error=self.error.emit,
         )
 
-    def run(self) -> None:  # Entry point called when the background thread starts
-        self._peer.receive_files(self._peer_ip, self._save_dir)  # Wait for peer and receive all incoming files
+    def start(self) -> None:
+        self._listener.start()
+
+    def stop(self) -> None:
+        self._listener.stop()
+
+    def pause(self) -> None:
+        self._listener.pause()
+
+    def resume(self) -> None:
+        self._listener.resume()

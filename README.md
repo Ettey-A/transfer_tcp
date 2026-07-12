@@ -16,43 +16,103 @@ A simple peer-to-peer desktop application for sending files between two computer
 
 ## Installation
 
+### Linux / macOS
+
 ```bash
 cd transfer_system
 python -m venv .venv
-source .venv/bin/activate   # Windows: .venv\Scripts\activate
+source .venv/bin/activate
 pip install -r requirements.txt
+```
+
+### Windows (easiest)
+
+1. Make sure Python 3 is installed from https://python.org  
+   (check **Add python.exe to PATH** during install)
+2. Double-click **`run.bat`**
+
+That creates a virtual environment, installs PyQt6, and starts the app.
+
+### Windows (PowerShell, manual)
+
+```powershell
+cd C:\Users\YOUR_NAME\Downloads\transfer_system
+python -m venv .venv
+.\.venv\Scripts\Activate.ps1
+pip install -r requirements.txt
+python main.py
 ```
 
 ## Usage
 
 ### Run the application
 
+**Windows:** double-click `run.bat`  
+Or: `python main.py` (auto-installs PyQt6 if missing)
+
+**Linux / macOS:**
 ```bash
+source .venv/bin/activate
 python main.py
 ```
 
+If you see `No module named 'PyQt6'`, install it once:
+
+```bash
+python -m pip install -r requirements.txt
+```
+
+### Fix: `can't open file '...\main.py': No such file or directory`
+
+This means **`main.py` is missing** from the folder you are in. Python is working; the project files are incomplete or in the wrong place.
+
+**Step 1 — Check what is in the folder:**
+
+```powershell
+cd C:\Users\ocran\Downloads\transfer_system
+dir
+```
+
+You should see at least:
+
+```
+main.py
+requirements.txt
+run.bat
+file_transfer\          (folder)
+```
+
+**Step 2 — If `main.py` is missing:**
+
+- Re-download or re-copy the **full** project (not just the `file_transfer` folder).
+- If you used Git: `git clone <repo-url>` then `cd transfer_system`.
+- If you unzipped a file, make sure you opened the inner folder that contains `main.py` (sometimes zip files create `transfer_system\transfer_system\`).
+
+**Step 3 — Run from the correct folder:**
+
+```powershell
+cd C:\Users\ocran\Downloads\transfer_system
+python main.py
+```
+
+Or double-click **`run.bat`** — it will tell you if `main.py` is missing and list what files are in the folder.
+
 ### Transfer files between two computers
 
-1. Open the app on **both** computers.
-2. Each side shares their **IP address** (shown at the top).
-3. Enter the other computer's IP in **Peer IP address**.
-4. On the **receiving** computer: click **Receive from Peer** (waits briefly for the other side).
-5. On the **sending** computer: add files and click **Send to Peer**.
+1. Open the app on **both** computers (Windows: double-click `run.bat`).
+2. On the **recipient**, share the **Your IP** shown in the app.
+3. On the **sender**:
+   - Enter that IP in **Recipient IP**
+   - Choose files
+   - Click **Send to Recipient**
 
-Neither computer runs a background server. The receiver only opens a short-lived connection slot while waiting; the sender connects directly to the peer.
+The recipient does not click anything — the app receives files automatically while it is open.
 
 ### Local testing
 
-Run two instances on the same machine:
-- Instance 1: peer IP `127.0.0.1`, click **Receive from Peer**
-- Instance 2: peer IP `127.0.0.1`, add files, click **Send to Peer**
-
-## How P2P connection works
-
-- **Sender** connects directly to the peer's IP on port `5050`.
-- **Receiver** opens a temporary inbound slot only while waiting for the transfer, then closes it when done.
-
-Both computers are equal peers — either one can send or receive on each transfer.
+1. Open two app windows.
+2. In window 2, set Recipient IP to `127.0.0.1`, choose files, click **Send to Recipient**.
+3. Window 1 receives into Downloads.
 
 ## Protocol
 
@@ -74,9 +134,12 @@ transfer_system/
 └── file_transfer/
     ├── constants.py
     ├── network.py
-    ├── peer.py         # P2P connection and transfer
-    ├── protocol.py     # Wire protocol helpers
+    ├── peer.py
+    ├── protocol.py
+    ├── listener.py
+    ├── received_store.py   # Received files history
     └── ui/
         ├── main_window.py
+        ├── received_panel.py  # Received files viewer
         └── workers.py
 ```
